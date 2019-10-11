@@ -50,3 +50,46 @@ class Read:
 
     def get_origin(self):
         return self.__origin
+
+class Genome:
+
+    def __init__(self, file):
+        self.read_genome(file)
+        self.__size = len(self.__genome)
+
+    def read_genome(self, file):
+        with open(file, 'r') as f:
+            line = f.readline()
+            while line:
+                if(line.startswith('>')):
+                    self.__genome = f.read().replace('\n', '')
+                    line = f.readline()
+                else:
+                    line = f.readline()
+
+    def get_genome(self):
+        return(self.__genome)
+
+    def index(self):
+        s = self.__genome + '$'
+        m = [s]
+        for _ in range(len(s)-1):
+            m.append(self.rot_left(s))
+
+        idx = np.argsort(m)
+        m = [m[i] for i in idx]
+        L = [i[self.__size] for i in m]
+        F = [i[0] for i in m]
+        return(0)
+
+    def bwt(self, string):
+        return(0)
+
+    def rot_left(self,s):
+        return(s[1:] + s[0])
+
+import numpy as np
+
+G = Genome('file.txt')
+print(G.get_genome())
+print(G.rot_left('Hello'))
