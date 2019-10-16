@@ -25,8 +25,6 @@ def readgeno(filename):
 
 chr22=readgeno('genome.chr22.5K.fa')
 
-chr22[-1]
-
 def readFastq(filename):
   reads=[]
   qualities=[]
@@ -72,7 +70,7 @@ def BWT_ordered(rotations):
      L = L + r[1][-1]
   return BWT_ordered, L
 
-BWT_ordered(BWT('TAGAGA'))[1]
+#use example on the slides to test: BWT_ordered(BWT('TAGAGA'))[1]
 
 #FM Index
 
@@ -87,7 +85,8 @@ def Occurance(L,k):
     array_C = {**array_C, **{c : occ}}
   return array_C
 
-Occurance('AGGTAA$',3)
+# testing:
+#Occurance('AGGTAA$',3)
 
 def OccuranceMatrix(L,c,k):
   occ_matrix={}
@@ -100,18 +99,16 @@ def OccuranceMatrix(L,c,k):
     occ_matrix = {**occ_matrix, **{base : occ}}
   return c,occ_matrix[c]
 
-OccuranceMatrix('AGGTAA$','A',7)
+# testing:
+#OccuranceMatrix('AGGTAA$','A',7)
 
+#FMIndex range matching
 def FMIndex(L,P,geno):
   i = len(P)
   base = P[i-1]
   next_base = P[i-2]
   sp = Occurance(L,len(L))[base] + 1
   ep = Occurance(L,len(L))[next_base]
-  #position of base in array_C
-  #pos = list(Occurance(L,len(L)).keys()).index(base)
-  #ep = list(Occurance(L,len(L)).items())[pos+1][1]
-  #print(i,base,sp,pos,ep)
 
   while True:
     base = P[i-2]
@@ -129,9 +126,12 @@ def FMIndex(L,P,geno):
   
   return hit_range1,hit_range2
 
-FMIndex('AGGTAA$','AGA','TAGAGA')
+# testing:
+#FMIndex('AGGTAA$','AGA','TAGAGA')
+
 
 # test chr22 and one-direction reads
+# haven't consider paired reads and multi A seq issue
 
 geno=chr22
 rotations=BWT(geno)
@@ -140,9 +140,5 @@ rotations=BWT(geno)
 mapping={}
 for read in tiny1:
   mapping = {**mapping, **{read : FMIndex(L,read,geno)}}
-
-mapping
-
-FMIndex(L,tiny1[2],geno)
 
 mapping
