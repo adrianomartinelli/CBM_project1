@@ -11,6 +11,8 @@ Original file is located at
 
 !wget --no-check https://public.bmi.inf.ethz.ch/teaching/cbm1_2019/project1/data_small/genome.chr22.5K.fa
 
+import numpy as np
+
 # read chr22
 def readgeno(filename):
   geno=''
@@ -22,6 +24,8 @@ def readgeno(filename):
   return geno
 
 chr22=readgeno('genome.chr22.5K.fa')
+
+chr22[-1]
 
 def readFastq(filename):
   reads=[]
@@ -43,13 +47,102 @@ uploaded = files.upload()
 
 tiny1, _ =readFastq('output_tiny_30xCov1.fq')
 tiny2, _ =readFastq('output_tiny_30xCov2.fq')
-print(len(tiny1),len(tiny2))
 
-def readsam(filename):
-  sam=''
-  with open(filename,'r') as s:
-    for line in s:
-       sam += line.rstrip()
-  return sam
+#Burrows-Wheeler Transformation
 
-readsam('output_tiny_30xCov.mod.sam')
+def BWT(geno):
+  geno = geno + "$"
+  index = 1
+  rotations={1:geno}
+  for i in geno:
+    geno = geno[1:] + geno[0]
+    index += 1 
+    rotations={**rotations, **{index : geno}} 
+    if geno[0] == "$":
+      break
+  return rotations
+
+import operator
+def BWT_ordered(rotations):
+  L=''
+  BWT_ordered = {}
+  BWT_ordered = sorted(rotations.items(), key=operator.itemgetter(1))
+  #save last column as L
+  for r in BWT_ordered:
+     L = L + r[1][-1]
+  return BWT_ordered, L
+
+BWT_ordered(BWT('TAGAGA'))[1]
+
+#FM Index
+
+def Occurance(L,k):
+  array_C={}
+  
+  for c in ["$","A","C","G","T"]:
+    occ=0
+    for l in L[:k]:
+      if l<c:
+        occ+=1
+    array_C = {**array_C, **{c : occ}}
+  return array_C
+
+Occurance('AGGTAA$',3)
+
+def OccuranceMatrix(L,c,k):
+  occ_matrix={}
+  
+  for base in ["$","A","C","G","T"]:
+    occ=0
+    for l in L[:k]:
+      if l==base:
+        occ+=1
+    occ_matrix = {**occ_matrix, **{base : occ}}
+  return c,occ_matrix[c]
+
+OccuranceMatrix('AGGTAA$','A',7)
+
+def FMIndex(L,P,geno):
+  i = len(P)
+  base = P[i-1]
+  next_base = P[i-2]
+  sp = Occurance(L,len(L))[base] + 1
+  ep = Occurance(L,len(L))[next_base]
+  #position of base in array_C
+  #pos = list(Occurance(L,len(L)).keys()).index(base)
+  #ep = list(Occurance(L,len(L)).items())[pos+1][1]
+  #print(i,base,sp,pos,ep)
+
+  while True:
+    base = P[i-2]
+    sp = Occurance(L,len(L))[base] + OccuranceMatrix(L,base,sp-1)[1] + 1
+    ep = Occurance(L,len(L))[base] + OccuranceMatrix(L,base,ep)[1]
+    i=i-1
+
+    if (sp > ep or i<2):
+      break
+  
+  #LF-mapping for search
+  rotations=BWT(geno)
+  hit_range1=BWT_ordered(rotations)[0][ep-1]
+  hit_range2=BWT_ordered(rotations)[0][sp-1]
+  
+  return hit_range1,hit_range2
+
+FMIndex('AGGTAA$','AGA','TAGAGA')
+
+# test chr22 and one-direction reads
+
+geno=chr22
+rotations=BWT(geno)
+
+#Loop though all reads
+mapping={}
+for read in tiny1:
+  mapping = {**mapping, **{read : FMIndex(L,read,geno)}}
+
+mapping
+
+FMIndex(L,tiny1[2],geno)
+
+mapping
