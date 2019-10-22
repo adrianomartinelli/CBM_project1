@@ -1,15 +1,22 @@
 class Reads:
-    forward = []
-    backward = []
+    pair1 = []
+    pair2 = []
 
     def read_file(self, file, file_type):
+        def __init__(self, file=None):
+            self.pair1 = []
+            self.pair2 = []
+            if file:
+                self.get_read_string(file+'1.fq')
+                self.get_read_string(file+'2.fq')
+
         with open(file, 'r') as f:
             line = f.readline()
             while line:
                 if(line.startswith('@')):
                     #Process id line
                     line = line.strip('@').strip('\n')
-                    id, origin = line.split('/')
+                    idx, origin = line.split('/')
 
                     #Process seq and skip next line which is a +
                     seq = f.readline().strip('\n')
@@ -19,9 +26,9 @@ class Reads:
                     phread = f.readline().strip('\n')
 
                     if(file_type == 'forward'):
-                        self.forward.append(Read(id, seq, phread, origin))
+                        self.pair1.append(Read(idx, seq, phread, origin))
                     else:
-                        self.backward.append(Read(id, seq, phread, origin))
+                        self.pair2.append(Read(idx, seq, phread, origin))
                     
                     #Read next line
                     line = f.readline()
@@ -29,12 +36,17 @@ class Reads:
                     line = f.readline()
 
     def print_reads(self):
-        for i in self.forward:
+        for i in self.pair1:
+            print('Pair1 reads:')
+            print(i.seq, '\n', i.phread, sep = '')
+
+        for i in self.pair2:
+            print('Pair2 reads:')
             print(i.seq, '\n', i.phread, sep = '')
 
 class Read:
-    def __init__(self, id, seq, phread, origin):
-        self.__id = id
+    def __init__(self, idx, seq, phread, origin):
+        self.__id = idx
         self.__seq = seq
         self.__phread = phread
         self.__origin = origin
@@ -56,6 +68,7 @@ class Genome:
     def __init__(self, file):
         self.read_genome(file)
         self.__size = len(self.__genome)
+        self.__chars = ['$','A','C','G','T']
 
     def read_genome(self, file):
         with open(file, 'r') as f:
