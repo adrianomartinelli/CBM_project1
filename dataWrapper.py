@@ -115,9 +115,10 @@ class Genome:
         self.F = [i[0] for i in m]
 
         #update alphabet size which is given by character in L
-        self.__alphabet = list(set(G.L))
-        idx = np.argsort(self.__alphabet)
-        self.__alphabet = [self.__alphabet[i] for i in idx]
+        #TODO this section seems not to be necessary
+        #self.__alphabet = list(set(G.L))
+        #idx = np.argsort(self.__alphabet)
+        #self.__alphabet = [self.__alphabet[i] for i in idx]
 
     def get_C(self):
         self.C={}
