@@ -9,7 +9,6 @@ def create_sam_header(filename, RNAME, RLEN, version=1.4, sorting_order="unsorte
     sam_file.write("@SQ\tSN:%s\tLN:%d\n" % (RNAME, RLEN))
     sam_file.close()
 
-
 def append_sam_alignment(filename, reverse=False, secondary=False, QNAME="*", RNAME="*", POS=0, MAPQ=0, CIGAR="*", RNEXT="*", PNEXT=0, TLEN=0, SEQ="*", QUAL="*"):
 
     # calculating the flag
@@ -169,7 +168,6 @@ def read_line(f):
         identifier = ''
     #return line
     return seq, phread, identifier
-
 
 class Func:
     def __init__(self):
@@ -388,7 +386,13 @@ while seq1 and seq2:
         POS2 = 0
         append_sam_alignment(filename, reverse=False, secondary=False, QNAME=QNAME1, RNAME=ref_name, POS=POS1, MAPQ=0, CIGAR="*", RNEXT="*", PNEXT=0, TLEN=0, SEQ="*", QUAL="*")
         append_sam_alignment(filename, reverse=False, secondary=False, QNAME=QNAME2, RNAME=ref_name, POS=POS2, MAPQ=0, CIGAR="*", RNEXT="*", PNEXT=0, TLEN=0, SEQ="*", QUAL="*")
+    
     #TODO what do we do if min(alignment_) == min(alignments_)?
+    else:
+        POS1 = -1
+        POS2 = -1
+        append_sam_alignment(filename, reverse=False, secondary=False, QNAME=QNAME1, RNAME=ref_name, POS=POS1, MAPQ=0, CIGAR="*", RNEXT="*", PNEXT=0, TLEN=0, SEQ="*", QUAL="*")
+        append_sam_alignment(filename, reverse=False, secondary=False, QNAME=QNAME2, RNAME=ref_name, POS=POS2, MAPQ=0, CIGAR="*", RNEXT="*", PNEXT=0, TLEN=0, SEQ="*", QUAL="*")
 
     seq1, phread1, QNAME1 = read_line(f1)
     seq2, phread2, QNAME2 = read_line(f2)
