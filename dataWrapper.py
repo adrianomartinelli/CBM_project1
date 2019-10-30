@@ -244,23 +244,23 @@ class Genome:
 
         #For every pair read1 and read2 compute the optimal alignment
         #and inversion status.
-        for i in range(len(R.pair1)):
+        for I in range(len(R.pair1)):
             #Get current reads
-            read1 = R.pair1[i]
+            read1 = R.pair1[I]
             read1.generate_kmers(k)
             self.map_kmers(read1)            
             read1.get_start_index()
             idx1 = read1.idx
-            print(read1.kmer)
+            #print(read1.kmer)
             #print(read1.idx)
 
             #Invert read 2
-            read2 = R.pair2[i]
+            read2 = R.pair2[I]
             read2.generate_kmers(k, reverse_complement = True) 
             self.map_kmers(read2)
             read2.get_start_index()
             idx2_inv = read2.idx
-            print(read2.kmer)
+            #print(read2.kmer)
             #print(read2.idx)
 
             comb1 = []
@@ -270,7 +270,7 @@ class Genome:
                     if (abs(read1.idx[n][0] - read2.idx[m][0]) < max_distance):
                         comb1.append((n,m))
 
-            print('Comb1: ',comb1)
+            #print('Comb1: ',comb1)
             alignment1 = []
             if len(comb1) > 0:
                 for c in comb1:
@@ -287,8 +287,8 @@ class Genome:
                     #print(genome_string2, read2.get_seq(), score2)
 
                     alignment1.append(score1+score2)
-            if len(alignment1) > 0:
-                print('Alignment: ',alignment1, alignment1.index(min(alignment1)))
+            #if len(alignment1) > 0:
+            #    print('Alignment: ',alignment1, alignment1.index(min(alignment1)))
 
             #Get current reads
             #read1 = R.pair1[i]
@@ -296,7 +296,7 @@ class Genome:
             self.map_kmers(read1)
             read1.get_start_index()
             idx1_inv = read1.idx
-            print(read1.kmer)
+            #print(read1.kmer)
             #print(read1.idx)
 
             #Invert read 2
@@ -305,7 +305,7 @@ class Genome:
             self.map_kmers(read2)
             read2.get_start_index()
             idx2 = read2.idx
-            print(read2.kmer)
+            #print(read2.kmer)
             #print(read2.idx)
             
             comb2 = []
@@ -314,8 +314,8 @@ class Genome:
                 for m in range(len(read2.idx)):
                     if (abs(read1.idx[n][0] - read2.idx[m][0]) < max_distance):
                         comb2.append((n,m))
-            print('Comb2: ',comb2)
-
+            #print('Comb2: ',comb2)
+            print(len(comb1), len(comb2))
             alignment2 = []
             if len(comb2) > 0:
                 for c in comb2:
@@ -332,16 +332,16 @@ class Genome:
                     #print(genome_string2, read2.get_seq(), score2)
 
                     alignment2.append(score1+score2)
-            if len(alignment2) > 0:
-                print('Alignment2: ',alignment2)
-                print(alignment2.index(min(alignment2)))
+            #if len(alignment2) > 0:
+            #    print('Alignment2: ',alignment2)
+            #    print(alignment2.index(min(alignment2)))
 
             #Read1 & read2 inverted 
             if((len(alignment1) and len(comb2) == 0) or (len(alignment1) and len(comb2) and min(alignment1) < min(alignment2))):
                 s = sorted(range(len(alignment1)), key=lambda k: alignment1[k])
                 comb1_sorted = [comb1[i] for i in s]
-                print(idx1)
-                print(idx2_inv)
+                #print(idx1)
+                #print(idx2_inv)
                 for idx, i in enumerate(comb1_sorted):
                     read1.mapped.append((idx1[i[0]][0]+1, alignment1[s[idx]], 0)) #genome index, score, inversion falag
                     read2.mapped.append((idx2_inv[i[1]][0]+1, alignment1[s[idx]], 1)) #genome index, score, inversion falag
@@ -353,14 +353,23 @@ class Genome:
                     for idx, i in enumerate(comb2_sorted):
                         read1.mapped.append((idx1_inv[i[0]][0]+1, alignment2[s[idx]], 1)) #genome index, score, inversion falag
                         read2.mapped.append((idx2[i[1]][0]+1, alignment2[s[idx]], 0)) #genome index, score, inversion falagndex, score, inversion falag
+            else:
+                print(I,'Not mapped')
+                read1.mapped = 'Not mapped'
+                read2.mapped = 'NOt mapped'
+            print(I, '/', len(R.pair1))
 
 #%%
 import numpy as np
 import itertools
 import collections
+#%%
 
-G = Genome('genome.txt')
-R = Reads('read.txt', 'read2.txt')
+# G = Genome('genome.txt')
+# R = Reads('read.txt', 'read2.txt')
+
+G = Genome('./data_small/genome.chr22.5K.fa')
+R = Reads('./data_small/output_tiny_30xCov1.fq', './data_small/output_tiny_30xCov2.fq')
 
 cost = np.full((4,4),1)
 cost[np.diag_indices(len(cost))] = 0
