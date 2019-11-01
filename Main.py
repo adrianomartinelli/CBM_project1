@@ -2,104 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import random
+import itertools
+import math
 
 alphabet     = ['A','C','G','T']
 inv_alphabet = ['T','G','C','A']
-
-
-class Read():
-  def __init__(self, idx, origin, string, quality, num_seeds=0, len_seed=0, inv=False):
-    self.idx = idx
-    self.origin = origin
-    self.string = string
-    self.quality = quality
-    self.inv = inv
-    self.num_seeds = num_seeds
-    self.len_seed = len_seed
-    self.num_match = 0
-    self.num_inv_match = 0
-    self.seed_pos = random.sample(range(len(string)-len_seed), num_seeds)
-    self.subs_seed_pos = [x for x in range(len(string)-len_seed) if x not in self.seed_pos]
-    self.generate_seeds()
-    if inv:
-      self.inv_complement()
-
-  def generate_seeds(self):
-    self.seeds = {}
-    for i in self.seed_pos:
-      while self.string[i:i+self.len_seed] in self.seeds:
-        i = random.sample(self.subs_seed_pos, 1)[0]
-      self.seeds[self.string[i:i+self.len_seed]] = {'ReadPos':[i],'GenomePos':[],'NumMatch':0}
-
-  def generate_inv_seeds(self):
-    self.inv_seeds = {}
-    for i in self.seed_pos:
-      while self.inv_string[i:i+self.len_seed] in self.inv_seeds:
-        i = random.sample(self.subs_seed_pos, 1)[0]
-      self.inv_seeds[self.inv_string[i:i+self.len_seed]] = {'ReadPos':[i],'GenomePos':[], 'NumMatch':0}
-
-  def complement(self, inv):
-    inv_read = ''
-    for base in inv:
-        inv_base = inv_alphabet[alphabet.index(base)]
-        inv_read += inv_base
-    return inv_read
-
-  def inv_complement(self):
-    #generates inverse complement of the read
-    self.inv = not self.inv
-    inv = self.string[::-1]
-    self.inv_string = self.complement(inv)
-    self.inv_quality = self.quality[::-1]
-    self.generate_inv_seeds()
-
-class Reads():
-  def __init__(self, file=None, num_seeds=0, len_seed=0):
-    self.pair1 = []
-    self.pair2 = []
-    self.num_seeds = num_seeds
-    self.len_seed = len_seed
-    if file:
-      self.get_read_string(file+'1.fq')
-      self.get_read_string(file+'2.fq')
-
-  def get_read_string(self, file):
-    with open(file, 'r') as f:
-      line = f.readline()
-      while line:
-        if(line.startswith('@')):
-          #Process ID line
-          line = line.lstrip('@').rstrip('\n')
-          #Get id of the genome and pair origin
-          idx, origin = line.split('/')
-          #Get read string
-          string = f.readline().rstrip('\n')
-          #Skip line with a '+'
-          f.readline()
-          #Get quality of the read pair
-          quality = f.readline().rstrip('\n')
-
-          #If pair origin is 1, assign the read to pair1, else assign the read to pair2
-          if(origin == '1'):
-              self.pair1.append(Read(idx, origin, string, quality, self.num_seeds, self.len_seed))
-          else:
-              self.pair2.append(Read(idx, origin, string, quality, self.num_seeds, self.len_seed))
-
-          #Get next ID line
-          line = f.readline()
-        else:
-          line = f.readline()
-
-  def print_reads(self):
-    print('Pair1 reads:')
-    for r in self.pair1:
-      print(r.idx)
-      print(r.string, '+', r.quality, sep = '\n')
-
-    print('Pair2 reads:')
-    for r in self.pair2:
-      print(r.idx)
-      print(r.string, '+', r.quality, sep = '\n')
 
 
 class Genome():
@@ -107,11 +14,14 @@ class Genome():
     self.genome_string = ''
     self.genome_length = 0
     self.alphabet = ['$','A','C','G','T']
+    self.cost_matrix = [[0, 4, 2, 4, 8],
+                        [4, 0, 4, 2, 8],
+                        [2, 4, 0, 4, 8],
+                        [4, 2, 4, 0, 8],
+                        [8, 8, 8, 8, 8]]
     if file:
       self.read_genome(file)
-    self.bwt_index()
-    self.occurence_array()
-    self.occurence_matrix()
+    self.index()
 
   def read_genome(self, file):
     with open(file, 'r') as f:
@@ -121,7 +31,25 @@ class Genome():
         self.genome_string = self.genome_string + line
     self.genome_length = len(self.genome_string)
 
-  def bwt_index(self):
+  def occurence_array(self, L):
+    self.C={}
+    for c in self.alphabet:
+      occ=0
+      for l in L:
+        if l<c:
+          occ+=1
+      self.C[c] = occ
+
+  def occurence_matrix(self, L):
+    self.Occ={}
+    for c in self.alphabet:
+      occ=0
+      for idx, l in enumerate(L):
+        if l==c:
+          occ+=1
+        self.Occ[(c, idx)] = occ
+
+  def index(self):
     s = self.genome_string + '$'
     m = [s]
     for _ in range(len(s)-1):
@@ -130,28 +58,12 @@ class Genome():
 
     idx = np.argsort(m)
 
-    self.s = [m[i] for i in idx]
     self.i = list(idx)
-    self.L = [i[-1] for i in self.s]
-    self.F = [i[0]  for i in self.s]
+    s = [m[i] for i in idx]
+    L = [i[-1] for i in s]
 
-  def occurence_array(self):
-    self.C={}
-    for c in self.alphabet:
-      occ=0
-      for l in self.L:
-        if l<c:
-          occ+=1
-      self.C[c] = occ
-
-  def occurence_matrix(self):
-    self.Occ={}
-    for c in self.alphabet:
-      occ=0
-      for idx, l in enumerate(self.L):
-        if l==c:
-          occ+=1
-        self.Occ[(c, idx)] = occ
+    self.occurence_array(L)
+    self.occurence_matrix(L)
 
   def next_char(self, char):
     idx = self.alphabet.index(char)
@@ -170,7 +82,7 @@ class Genome():
     if self.next_char(c):
       ep = self.C[self.next_char(c)]
     else:
-      ep = len(self.L)
+      ep = self.genome_length + 1
 
     while sp <= ep and i >= 2:
       c = P[i-2]
@@ -185,83 +97,251 @@ class Genome():
       match_idx.sort()
       return match_idx
 
-  def seed_positions(self, reads):
-    for pair in [reads.pair1, reads.pair2]:
-      for read in pair:
-        for seed in read.seeds:
-          pos = self.find_pos(seed)
-          if pos:
-            read.seeds[seed]['GenomePos'] = pos
-            read.seeds[seed]['NumMatch'] = len(pos)
-            read.num_match += len(pos)
-        if read.inv:
-          for inv_seed in read.inv_seeds:
-            inv_pos = self.find_pos(inv_seed)
-            if inv_pos:
-              read.inv_seeds[inv_seed]['GenomePos'] = inv_pos
-              read.inv_seeds[inv_seed]['NumMatch'] = len(inv_pos)
-              read.num_inv_match += len(inv_pos)
+  def seed_positions(self, read1, read2):
+    for read in [read1, read2]:
+      inv_flag = False
+      for seed in list(read.seeds.keys()):
+        pos = self.find_pos(seed)
+        if pos:
+          read.seeds[seed]['GenomePos'] = pos
+        else:
+          del read.seeds[seed]
 
-  def edit_distance(self, x, y):
-    score = [[0, 4, 2, 4, 8],
-             [4, 0, 4, 2, 8],
-             [2, 4, 0, 4, 8],
-             [4, 2, 4, 0, 8],
-             [8, 8, 8, 8, 8]]
+      if len(read.seeds) < read.num_seeds/5:
+        return not inv_flag
+
+    return inv_flag
+
+  def edit_distance(self, read, start, constraint=10, margin=5):
+    DELETION, INSERTION, MISMATCH, MATCH = range(4)
+    cost = self.cost_matrix
+    x, y = read.string, self.genome_string[max(start-margin, 0): min(start+read.len_string+margin, self.genome_length)]
+
     D = []
     for i in range(len(x) + 1):
-      D.append([0] * (len(y)+1))
+      D.append([math.inf] * (len(y)+1))
 
-    for i in range(len(x) + 1):
-      D[i][0] = i + score[alphabet.index(x[i-1])][-1]
     for i in range(len(y) + 1):
-      D[0][i] = i + score[-1][alphabet.index(y[i-1])]
+      D[0][i] = 0
+
+    B = []
+    for i in range(len(x) + 1):
+      B.append([0] * (len(y)+1))
+
+    for i in range(1, len(x) + 1):
+      D[i][0] = D[i-1][0] + cost[alphabet.index(x[i-1])][-1]
+      B[i][0] = DELETION
 
     for i in range (1, len(x)+1):
-      for j in range (1, len(y)+1):
-        distHor = D[i][j-1] + score[-1][alphabet.index(y[j-1])]
-        distVer = D[i-1][j] + score[alphabet.index(x[i-1])][-1]
+      for j in range(max(i-constraint, 1), min(len(y)+1,i+constraint+1)):
+        distHor = (D[i][j-1] + cost[-1][alphabet.index(y[j-1])], INSERTION)
+        distVer = (D[i-1][j] + cost[alphabet.index(x[i-1])][-1], DELETION)
+
         if x[i-1] == y[j-1]:
-          distDiag = D[i-1][j-1]
+          distDiag = (D[i-1][j-1], MATCH)
         else:
-          distDiag = D[i-1][j-1] + score[alphabet.index(x[i-1])][alphabet.index(y[j-1])]
+          distDiag = (D[i-1][j-1] + cost[alphabet.index(x[i-1])][alphabet.index(y[j-1])], MISMATCH)
 
-        D[i][j] = min(DistHor, distVer, distDiag)
+        D[i][j], B[i][j] = min(distDiag, distHor, distVer)
 
-    return D[-1][-1]
+    best_pos = np.argmin(D[-1][:])
+    cost = min(D[-1][:])
+
+    alignment = []
+    i, j = len(x), best_pos
+
+    #Fill in the first entry of alignment string
+    if B[i][j] == DELETION:
+      i -= 1
+      alignment.append('D')
+    elif B[i][j] == INSERTION:
+      j -= 1
+      alignment.append('I')
+    elif B[i][j] == MISMATCH:
+      i -= 1
+      j -= 1
+      alignment.append('X')
+    elif B[i][j] == MATCH:
+      i -= 1
+      j -= 1
+      alignment.append('M')
+
+    alignment.append(1)
+
+    while i > 0:
+      assert i >= 0
+      if B[i][j] == DELETION:
+        i -= 1
+        if alignment[-2] == 'D':
+          alignment[-1] += 1
+        else:
+          alignment.extend(['D', 1])
+      elif B[i][j] == INSERTION:
+        j -= 1
+        if alignment[-2] == 'I':
+          alignment[-1] += 1
+        else:
+          alignment.extend(['I', 1])
+      elif B[i][j] == MISMATCH:
+        i -= 1
+        j -= 1
+        if alignment[-2] == 'X':
+          alignment[-1] += 1
+        else:
+          alignment.extend(['X', 1])
+      elif B[i][j] == MATCH:
+        i -= 1
+        j -= 1
+        if alignment[-2] == 'M':
+          alignment[-1] += 1
+        else:
+          alignment.extend(['M', 1])
+      else:
+        assert(False)
+
+    genome_pos = j + start - margin
+
+    return ''.join(str(i) for i in list(reversed(alignment))), genome_pos, cost
 
 
-##Read an example genome
-G = Genome('ExampleGenome.txt')
-#Print the example genome string
-print(G.genome_string)
+class Read():
+  def __init__(self, idx, origin, string, quality, len_seed=0, inv=False):
+    self.idx = idx
+    self.origin = origin
+    self.string = string
+    self.quality = quality
+    self.len_string = len(string)
+    self.len_seed = len_seed
+    self.num_seeds =  len(range(0, len(self.string) - self.len_seed, int(self.len_seed/2)))
+    if inv:
+      self.inv = not inv
+      self.inverse()
+    else:
+      self.inv = inv
+      self.generate_seeds()
 
-##Pattern matching example
-P = 'AGT'
-P_match_idx = G.find_pos(P)
-if P_match_idx:
-  print("Matching locations in the genome:", np.array(P_match_idx)+1, sep='\n')
-  print("Patterns at matching locations:",[G.genome_string[i:i+len(P)] for i in P_match_idx],  sep='\n')
-else:
-  print('No match :(')
+  ##Generate seeds for a given read
+  def generate_seeds(self):
+    self.seeds = {}
+    for i in range(0, len(self.string) - self.len_seed, int(self.len_seed/2)):
+      kmer = self.string[i:i+self.len_seed]
+      if kmer in self.seeds:
+         self.seeds[kmer]['ReadPos'].append(i)
+      else:
+         self.seeds[kmer] = {'ReadPos':[i], 'GenomePos':[], 'AlignmentPos':[], 'Alignment':[]}
 
-##Load the example reads and generate seeds
-example_read = 'ExampleRead'
-R = Reads(example_read, num_seeds=5, len_seed=3)
+  ##Change the each base of read with its complement
+  def complement(self, inv):
+    inv_read = ''
+    for base in inv:
+        inv_base = inv_alphabet[alphabet.index(base)]
+        inv_read += inv_base
+    return inv_read
 
-print("Reads and generated seeds with their positions in the reads:\n")
-print(R.pair1[0].string)
-print(R.pair1[0].seeds)
-#Calculate inverse complement of the read and generate seeds
-R.pair1[0].inv_complement()
-print(R.pair1[0].inv_string)
-print(R.pair1[0].inv_seeds)
+  ##Generates inverse complement of the read and its seeds
+  def inverse(self):
+    self.inv = not self.inv
+    self.string = self.complement(self.string[::-1])
+    self.quality = self.quality[::-1]
+    self.generate_seeds()
 
-##Find the locations of read seeds in genome
-G.seed_positions(R)
+  def start_index(self, G):
+    """
+    Calculate potential positions of reads in the genome
+    """
+    idx = {}
+    for seed in self.seeds:
+      combinations = list(itertools.product(self.seeds[seed]['ReadPos'], self.seeds[seed]['GenomePos']))
+      for pair in combinations:
+        #All combinations of starting positions
+        start = pair[1] - pair[0]
+        if start>=0 and start<=(G.genome_length - self.len_string):
+          if str(start) in idx:
+            idx[str(start)] += 1
+          else:
+            idx[str(start)] = 1
 
-print("Reads and generated seeds with their positions in the read and genome as well as number of matches:\n")
-print(R.pair1[0].string)
-print(R.pair1[0].seeds)
-print(R.pair1[0].inv_string)
-print(R.pair1[0].inv_seeds)
+    #Find the max number of matches among the matching positions
+    max_match = max(idx.values())
+    #Generate sorted tuple list out of dict using
+    idx = sorted(idx.items(), key=lambda item: item[1], reverse=True)
+    start_idx = [int(i[0]) for i in idx if i[1]>max_match/5]
+    self.genome_pos = {i:'' for i in start_idx}
+
+
+def read_line(f):
+  line = f.readline()
+  if(line.startswith('@')):
+    #Process ID line
+    line = line.lstrip('@').rstrip('\n')
+
+    #Get id of the genome and pair origin
+    idx, origin = line.split('/')
+
+    #Get read string
+    string = f.readline().rstrip('\n')
+
+    #Skip line with '+'
+    f.readline()
+
+    #Get quality of the read pair
+    quality = f.readline().rstrip('\n')
+
+    return idx, origin, string, quality
+  else:
+    return '', '', '', ''
+
+def feasible_combinations(r1, r2, dist_threshold=500):
+  combinations = []
+  if r1.inv == True:
+    for i1 in r1.genome_pos:
+      for i2 in r2.genome_pos:
+        if 0 <= (i1 - i2) <= dist_threshold:
+          combinations.append((i1, i2))
+
+  else:
+    for i1 in r1.genome_pos:
+      for i2 in r2.genome_pos:
+        if 0 <= (i2 - i1) <= dist_threshold:
+          combinations.append((i1, i2))
+
+  return combinations
+
+#Read the genome
+small_genome = 'genome.chr22.5K.fa'
+G = Genome(small_genome)
+
+%%time
+#Load the read pairs and process them
+len_seed = 16
+f1 = open('output_tiny_30xCov1.fq', 'r')
+f2 = open('output_tiny_30xCov2.fq', 'r')
+load1 = read_line(f1)
+load2 = read_line(f2)
+
+while load1[0] and load2[0]:
+  r1 = Read(*load1, len_seed, inv=False)
+  r2 = Read(*load2, len_seed, inv=True)
+
+  inv_flag = G.seed_positions(r1, r2)
+  if inv_flag:
+    r1.inverse()
+    r2.inverse()
+    G.seed_positions(r1, r2)
+
+  r1.start_index(G)
+  r2.start_index(G)
+
+  combinations = feasible_combinations(r1, r2)
+
+  for pos_pair in combinations:
+    start1 = pos_pair[0]
+    start2 = pos_pair[1]
+    alignment1, pos1, cost1 = G.edit_distance(r1, start1)
+    alignment2, pos2, cost2 = G.edit_distance(r2, start2)
+
+  print(r1.idx, pos1+1, alignment1)
+  print(r2.idx, pos2+1, alignment2)
+
+  load1 = read_line(f1)
+  load2 = read_line(f2)
