@@ -122,7 +122,7 @@ class Genome():
     l = []
     #print(self.genome_length+1)
     for i in range(self.genome_length+1):
-      if not i % 10000:
+      if not i % 100000:
         print('\t',i, '/', self.genome_length, '(',i/self.genome_length*100, '%)')
       m.append(ss[i:(i+k)])
       l.append(s[-1 + i])
@@ -477,8 +477,8 @@ if __name__ == '__main__':
   #Assign necessary constants to variables
   len_seed = args.k
   dist_threshold = 500
-  constraint=6
-  margin=3
+  constraint=2
+  margin=0
   #############################################
 
   #Read the input and output files
@@ -573,7 +573,7 @@ if __name__ == '__main__':
       append_sam_alignment(args.outpath, QNAME=r2.idx, RNAME=G.genome_name)
 
     iteration += 1
-    if not (iteration % 10000):
+    if not (iteration % 100):
       print('Read', iteration,' Run-time:', time.time()-tstart)
 
     #Read the next 2 reads

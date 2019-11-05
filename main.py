@@ -56,12 +56,6 @@ class Genome:
         self.L = [i[-1] for i in m]
         self.F = [i[0] for i in m]
 
-        #update alphabet size which is given by character in L
-        #TODO this section seems not to be necessary
-        #self.__alphabet = list(set(G.L))
-        #idx = np.argsort(self.__alphabet)
-        #self.__alphabet = [self.__alphabet[i] for i in idx]
-
     def get_C(self):
         self.C={}
         for c in self.alphabet:
@@ -127,6 +121,7 @@ class Genome:
 
     def align(self, substring, string, cost, reverse_complement = False, constrain = 2):
         alphabet = self.alphabet[1:]
+        edit = np.full((len(substring)+1, len(string)+1), 10000)
 
         C = np.full((len(substring)+1, len(string)+1), 10000)
         C[0,:] = 0
@@ -141,10 +136,14 @@ class Genome:
                 mismatch = C[row-1,col-1] + cost[idx1, idx2]
                 gap1 = C[row-1, col] + 2
                 gap2 = C[row, col-1] + 2
+                pos = np.array([match, mismatch, gap1, gap2])
 
-                C[row,col] = min(match, mismatch, gap1, gap2)
+                C[row,col] = np.min(pos)
+                edit[row, col] = int(np.where(np.min(pos) == pos)[0])
+
+        #start_index = int(np.where(np.min(pos) == pos)[0])
+        
         return min(C[len(substring),:])
-        #return C
 
 def read_line(f):
     line = f.readline()
@@ -269,8 +268,6 @@ constrain = 5 #maximum number of allowed gaps during alignment
 
 start = time.time()
 while seq1 and seq2:
-    # print(seq1, phread1, QNAME1)
-    # print(seq2, phread2, QNAME2)
 
     ######################################
     #In this part we invert seq2
@@ -284,18 +281,11 @@ while seq1 and seq2:
     kmers1 = G.map_kmers(kmers1)
     kmers2 = G.map_kmers(kmers2)
 
-    # print(kmers1)
-    # print(kmers2)
-
     #Find the starting positions of each 
     start1 = f.get_start_index(kmers1)
     start2 = f.get_start_index(kmers2)
 
-    # print(start1)
-    # print(start2)
-
     comb = f.get_feasible_comb(start1, start2, max_dist)
-    #print(I, 'Length comb:' ,len(comb))
 
     if len(comb) > 0:
         #Find unique start sites such that a read is not aligned to the same position multiple times
@@ -313,15 +303,10 @@ while seq1 and seq2:
             score = G.align(f.complement(seq2[::-1]), genome_string, cost, constrain = constrain)
             start2[i] = (start2[i], score)
 
-        # print(start1)
-        # print(start2)
-
         #Calculate alignment score for all start sites in start1_unique and start2_unique
         alignments = []
         for i in comb:
             alignments.append(start1[i[0]][1] + start2[i[1]][1]) #add the scores of alignment of read1 and read2 together to obtain overall score of this read mapping
-
-        # print(alignments)
 
     ######################################
     #In this part we invert seq1
@@ -341,7 +326,6 @@ while seq1 and seq2:
 
     comb_ = f.get_feasible_comb(start1_, start2_, max_dist)
 
-    #print(I, 'Length comb:' ,len(comb_))
     if len(comb_) > 0:
         #Find unique start sites such that a read is not aligned to the same position multiple times
         comb1_unique = list(set([i[0] for i in comb_]))
@@ -387,7 +371,7 @@ while seq1 and seq2:
         append_sam_alignment(filename, reverse=False, secondary=False, QNAME=QNAME1, RNAME=ref_name, POS=POS1, MAPQ=0, CIGAR="*", RNEXT="*", PNEXT=0, TLEN=0, SEQ="*", QUAL="*")
         append_sam_alignment(filename, reverse=False, secondary=False, QNAME=QNAME2, RNAME=ref_name, POS=POS2, MAPQ=0, CIGAR="*", RNEXT="*", PNEXT=0, TLEN=0, SEQ="*", QUAL="*")
     
-    #TODO what do we do if min(alignment_) == min(alignments_)?
+    #TODO what do we do if min(alignment_) == min(alignments)?
     else:
         POS1 = -1
         POS2 = -1
@@ -404,3 +388,28 @@ f1.close()
 f2.close()
 
 # %%
+import argparse
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Map pair-end read to reference genome')
+    parser.add_argument("--genome",
+                    action='store',
+                    help='The path to genome file.',\
+                    default='./data_small/genome.chr22.5K.fa')
+    parser.add_argument("--read1",
+                    action='store',
+                    help='The path to first paired end read file.',\
+                    default='./data_small/output_tiny_30xCov1.fq')
+    parser.add_argument("--read2",
+                    action='store',
+                    help='The path to second paired end read file.',\
+                    default='./data_small/output_tiny_30xCov2.fq')
+    parser.add_argument("--outpath",
+                    action='store',
+                    help='The path to where the SAM file should be stored.',
+                    default='./')
+
+    args = parser.parse_args()
+
+    #to read in genome use: args.genome
+    #to read in reads use: args.read1
+    #to write SAm file use: args.outpath
