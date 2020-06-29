@@ -1,4 +1,3 @@
-#%%
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -520,8 +519,3 @@ if __name__ == '__main__':
     #Read the next 2 reads
     load1 = read_line(f1)
     load2 = read_line(f2)
-
-#%%
-#G = Genome(file = 'genome.txt', k = 16) 
-
-# %%
